@@ -3,14 +3,17 @@
 -- Run this in Supabase Dashboard -> SQL Editor -> Run to initialize your database.
 -- ============================================================================
 
+-- 1. Enable pgcrypto for UUID and cryptographic helpers
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- 2. Generic School State Table (Application Settings, Images, Announcements, Layouts)
 CREATE TABLE IF NOT EXISTS public.school_state (
   key TEXT PRIMARY KEY,
   data JSONB NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 3. Dedicated Scholars / Students Database
 CREATE TABLE IF NOT EXISTS public.students (
   id TEXT PRIMARY KEY,
   reg_number TEXT UNIQUE,
@@ -27,10 +30,12 @@ CREATE TABLE IF NOT EXISTS public.students (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Indexes for lightning fast login queries
 CREATE INDEX IF NOT EXISTS students_reg_idx ON public.students (lower(reg_number));
 CREATE INDEX IF NOT EXISTS students_name_idx ON public.students (lower(name));
 CREATE INDEX IF NOT EXISTS students_grade_idx ON public.students (grade);
 
+-- 4. Persistent Images Table (for custom logos, hero banners, gallery photos)
 CREATE TABLE IF NOT EXISTS public.images (
   id TEXT PRIMARY KEY,
   filename TEXT NOT NULL,
@@ -38,6 +43,7 @@ CREATE TABLE IF NOT EXISTS public.images (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 5. Staff & Faculty Tutors Table
 CREATE TABLE IF NOT EXISTS public.tutors (
   id TEXT PRIMARY KEY,
   staff_id TEXT,
@@ -48,6 +54,7 @@ CREATE TABLE IF NOT EXISTS public.tutors (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 6. Parents & Guardians Table
 CREATE TABLE IF NOT EXISTS public.parents (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -57,6 +64,7 @@ CREATE TABLE IF NOT EXISTS public.parents (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 7. Audit Logs Table
 CREATE TABLE IF NOT EXISTS public.audit_logs (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   action TEXT NOT NULL,
@@ -66,6 +74,9 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- ----------------------------------------------------------------------------
+-- ROW LEVEL SECURITY (RLS) POLICIES (Guarantees seamless browser client writes)
+-- ----------------------------------------------------------------------------
 ALTER TABLE public.school_state ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.images ENABLE ROW LEVEL SECURITY;
@@ -73,6 +84,7 @@ ALTER TABLE public.tutors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.parents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if rerun
 DO $$
 BEGIN
   DROP POLICY IF EXISTS "Public read school_state" ON public.school_state;
@@ -110,7 +122,7 @@ CREATE POLICY "Public read audit_logs" ON public.audit_logs FOR SELECT USING (tr
 CREATE POLICY "Public write audit_logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
 
 -- ----------------------------------------------------------------------------
--- SEED DATA: 94 Scholars (SS3: 4 Science, 2 Arts; SS2: 2 Science, 3 Arts; SS1: 4 Science, 3 Arts)
+-- SEED DATA: 94 Scholars (Prioritized Migration Names + 2026 Midterm Scores + SS3)
 -- ----------------------------------------------------------------------------
 INSERT INTO public.students (id, reg_number, name, gender, age, grade, password, aliases, midterm_scores, grades, fee_status)
 VALUES (
@@ -869,7 +881,7 @@ VALUES (
   'Oladipo Darasimi',
   'Female',
   15,
-  'SSS 1 Arts & Commercial',
+  'SSS 1 ARTS',
   'stanbax2025',
   ARRAY['Oladipo Darasimi', 'darasimi oladipo', 'oladipo darasimi', 'Oladiipo Darasimi Esther']::TEXT[],
   '{"D/Tech":{"ca1":4,"ca2":10},"Yoruba":{"ca1":4,"ca2":5},"Government":{"ca1":6,"ca2":8},"Literature":{"ca1":6,"ca2":8},"C.R.S":{"ca1":5,"ca2":5},"C.H.S":{"ca1":2,"ca2":2},"L.S.F":{"ca1":9,"ca2":9},"English Studies":{"ca1":7,"ca2":5}}'::JSONB,
@@ -894,7 +906,7 @@ VALUES (
   'Asimiyu Abdulsalam',
   'Male',
   15,
-  'SSS 1 Arts & Commercial',
+  'SSS 1 ARTS',
   'stanbax2025',
   ARRAY['Asimiyu Abdulsalam', 'abdulsalam asimiyu', 'asimiyu abdulsalam']::TEXT[],
   '{"D/Tech":{"ca1":6,"ca2":10},"Yoruba":{"ca1":6,"ca2":5},"Government":{"ca1":5,"ca2":8},"Literature":{"ca1":5,"ca2":8},"C.R.S":{"ca1":2,"ca2":2},"C.H.S":{"ca1":7,"ca2":7},"L.S.F":{"ca1":9,"ca2":9},"English Studies":{"ca1":10,"ca2":7}}'::JSONB,
@@ -919,7 +931,7 @@ VALUES (
   'Yekinni Zainab',
   'Female',
   15,
-  'SSS 1 Arts & Commercial',
+  'SSS 1 ARTS',
   'stanbax2025',
   ARRAY['Yekinni Zainab', 'zainab yekinni', 'yekinni zainab', 'Yekinni Zainab Ojuolape']::TEXT[],
   '{"D/Tech":{"ca1":9,"ca2":10},"Yoruba":{"ca1":8,"ca2":7},"Government":{"ca1":8,"ca2":8},"Literature":{"ca1":8,"ca2":8},"C.R.S":{"ca1":9,"ca2":9},"C.H.S":{"ca1":10,"ca2":10},"L.S.F":{"ca1":10,"ca2":10},"English Studies":{"ca1":10,"ca2":10}}'::JSONB,
@@ -2143,7 +2155,7 @@ VALUES (
   'SBS/2026/SS2/001',
   'Bello Mordiyah',
   'Female',
-  16,
+  13,
   'SSS 2 Science',
   'stanbax2025',
   ARRAY['Bello Mordiyah', 'mordiyah bello', 'bello mordiyah']::TEXT[],
@@ -2168,8 +2180,8 @@ VALUES (
   'SBS/2026/SS2/003',
   'Kafilat Balogun',
   'Female',
-  16,
-  'SSS 2 Arts & Commercial',
+  12,
+  'SSS 2 Science',
   'stanbax2025',
   ARRAY['Kafilat Balogun', 'balogun kafilat', 'kafilat balogun']::TEXT[],
   '{"Mathematics":{"ca1":10,"ca2":5},"English Language":{"ca1":10,"ca2":8},"Digital Technology":{"ca1":8,"ca2":10},"Livestock Farming":{"ca1":10,"ca2":10},"Further Mathematics":{"ca1":10,"ca2":10},"Citizenship and Heritage Studies":{"ca1":8,"ca2":4},"Literature in English":{"ca1":8,"ca2":8},"Government":{"ca1":7,"ca2":7},"Yoruba":{"ca1":10,"ca2":9}}'::JSONB,
@@ -2317,9 +2329,9 @@ VALUES (
   'std-ss3-1',
   'SBS/2026/SS3/001',
   'Ezenwa Uchechukwu',
-  'Female',
+  'Male',
   17,
-  'SSS 3 Arts & Commercial',
+  'SSS 3',
   'stanbax2025',
   ARRAY['Ezenwa Uchechukwu']::TEXT[],
   '{"C.H.S":{"ca1":10,"ca2":10},"Yoruba":{"ca1":10,"ca2":9},"Digital Tech":{"ca1":10,"ca2":10},"C.R.S":{"ca1":9,"ca2":9},"Mathematics":{"ca1":9,"ca2":10},"Government":{"ca1":10,"ca2":10},"Literature":{"ca1":10,"ca2":10},"English":{"ca1":10,"ca2":10}}'::JSONB,
@@ -2344,7 +2356,7 @@ VALUES (
   'Iteji Favour',
   'Female',
   17,
-  'SSS 3 Arts & Commercial',
+  'SSS 3',
   'stanbax2025',
   ARRAY['Iteji Favour']::TEXT[],
   '{"C.H.S":{"ca1":10,"ca2":10},"Yoruba":{"ca1":10,"ca2":10},"Digital Tech":{"ca1":10,"ca2":10},"C.R.S":{"ca1":8,"ca2":8},"Mathematics":{"ca1":9,"ca2":10},"Government":{"ca1":10,"ca2":10},"Literature":{"ca1":10,"ca2":10},"English":{"ca1":10,"ca2":10}}'::JSONB,
@@ -2369,7 +2381,7 @@ VALUES (
   'Ademijoke David',
   'Male',
   17,
-  'SSS 3 Science',
+  'SSS 3',
   'stanbax2025',
   ARRAY['Ademijoke David']::TEXT[],
   '{"C.H.S":{"ca1":10,"ca2":10},"Physics":{"ca1":10,"ca2":10},"Yoruba":{"ca1":10,"ca2":10},"Digital Tech":{"ca1":10,"ca2":10},"Chemistry":{"ca1":10,"ca2":10},"Biology":{"ca1":9,"ca2":9},"Mathematics":{"ca1":9,"ca2":10},"English":{"ca1":10,"ca2":10}}'::JSONB,
@@ -2394,7 +2406,7 @@ VALUES (
   'Ejionye Chidubem',
   'Male',
   17,
-  'SSS 3 Science',
+  'SSS 3',
   'stanbax2025',
   ARRAY['Ejionye Chidubem']::TEXT[],
   '{"C.H.S":{"ca1":10,"ca2":10},"Digital Tech":{"ca1":10,"ca2":10},"Chemistry":{"ca1":10,"ca2":10},"Biology":{"ca1":10,"ca2":9},"Mathematics":{"ca1":9,"ca2":10},"English":{"ca1":10,"ca2":10}}'::JSONB,
@@ -2419,7 +2431,7 @@ VALUES (
   'Okwuchukwu Onyedika',
   'Male',
   17,
-  'SSS 3 Science',
+  'SSS 3',
   'stanbax2025',
   ARRAY['Okwuchukwu Onyedika']::TEXT[],
   '{"C.H.S":{"ca1":10,"ca2":10},"Physics":{"ca1":9,"ca2":9},"Digital Tech":{"ca1":10,"ca2":10},"Chemistry":{"ca1":9,"ca2":9},"Biology":{"ca1":9,"ca2":8},"Mathematics":{"ca1":8,"ca2":10},"English":{"ca1":10,"ca2":10}}'::JSONB,
@@ -2444,7 +2456,7 @@ VALUES (
   'Adeleke Joshua',
   'Male',
   17,
-  'SSS 3 Science',
+  'SSS 3',
   'stanbax2025',
   ARRAY['Adeleke Joshua']::TEXT[],
   '{"C.H.S":{"ca1":10,"ca2":10},"Physics":{"ca1":9,"ca2":9},"Digital Tech":{"ca1":10,"ca2":10},"Chemistry":{"ca1":9,"ca2":9},"Biology":{"ca1":9,"ca2":8},"Mathematics":{"ca1":7,"ca2":10},"English":{"ca1":10,"ca2":10}}'::JSONB,

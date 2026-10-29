@@ -276,7 +276,7 @@ processJsonFile('Pry.json', 'Primary 2');
 processJsonFile('jss2_scores.json', 'JSS 2');
 processJsonFile('ss1_scores.json', 'SSS 1 Science');
 
-// 4. Process SS3: "ss3 are 4 science students (all male) and 2 arts (females)"
+// 4. Process SS3: "For ss3 they’re not on the database, create an account for them."
 const ss3Path = path.join(SCORES_DIR, 'ss3_scores.json');
 if (fs.existsSync(ss3Path)) {
   const ss3Data = JSON.parse(fs.readFileSync(ss3Path, 'utf8'));
@@ -284,21 +284,16 @@ if (fs.existsSync(ss3Path)) {
   for (const s of ss3Data.students || []) {
     const rawName = cleanText(s.name);
     let student = findStudent(null, rawName);
-    
-    // Explicit classification per user: 4 science (all male), 2 arts (females)
-    const isArtsFemale = rawName.toLowerCase().includes('uchechukwu') || rawName.toLowerCase().includes('favour');
-    const grade = isArtsFemale ? 'SSS 3 Arts & Commercial' : 'SSS 3 Science';
-    const gender = isArtsFemale ? 'Female' : 'Male';
-
     if (!student) {
       const reg = `SBS/2026/SS3/${String(ss3Index).padStart(3, '0')}`;
       const id = `std-ss3-${ss3Index}`;
+      const isFemale = rawName.toLowerCase().includes('favour');
       student = {
         id,
         regNumber: reg,
         name: rawName,
-        grade,
-        gender,
+        grade: 'SSS 3',
+        gender: isFemale ? 'Female' : 'Male',
         age: 17,
         password: 'stanbax2025',
         email: `sbs2026ss3${String(ss3Index).padStart(3, '0')}@stanbaxschools.edu.ng`,
@@ -313,10 +308,6 @@ if (fs.existsSync(ss3Path)) {
       };
       studentsMap.set(reg, student);
       ss3Index++;
-    } else {
-      student.grade = grade;
-      student.gender = gender;
-      student.age = 17;
     }
 
     for (const [sub, sc] of Object.entries(s.scores || {})) {
@@ -361,52 +352,6 @@ const finalizedStudents = Array.from(studentsMap.values()).map(student => {
     student.grades = midtermGrades;
     const totalScore = midtermGrades.reduce((sum, g) => sum + g.total, 0);
     student.termAverage = Math.round((totalScore / midtermGrades.length) * 10) / 10;
-  }
-
-  // Enforce specific grade and department classifications per school directive:
-  const n = (student.name || '').toLowerCase();
-  
-  // SS3: 4 Science (all male), 2 Arts (females)
-  if (n.includes('uchechukwu') || (n.includes('iteji') && n.includes('favour'))) {
-    student.grade = 'SSS 3 Arts & Commercial';
-    student.gender = 'Female';
-    student.age = 17;
-  } else if (n.includes('ademijoke') || n.includes('chidubem') || n.includes('onyedika') || (n.includes('adeleke') && n.includes('joshua'))) {
-    student.grade = 'SSS 3 Science';
-    student.gender = 'Male';
-    student.age = 17;
-  }
-
-  // SS2: 2 Science (Bello Mordiyah and Alabi Blessing), 3 Arts (Taofeek Fawas, Oladele Esther, Kafilat Balogun)
-  if (n.includes('bello mordiyah') || n.includes('alabi blessing')) {
-    student.grade = 'SSS 2 Science';
-    student.gender = 'Female';
-    student.age = 16;
-  } else if (n.includes('kafilat balogun')) {
-    student.grade = 'SSS 2 Arts & Commercial';
-    student.gender = 'Female';
-    student.age = 16;
-  } else if (n.includes('taofeek fawas')) {
-    student.grade = 'SSS 2 Arts & Commercial';
-    student.gender = 'Male';
-    student.age = 16;
-  } else if (n.includes('oladele esther')) {
-    student.grade = 'SSS 2 Arts & Commercial';
-    student.gender = 'Female';
-    student.age = 16;
-  }
-
-  // SS1: 4 Science (Ezenwa Vivian, Yekinni Omotoyosi, Adeniyi Moses, Odubanjo Irewamiri), 3 Arts (Oladipo Darasimi, Asimiyu Abdulsalam, Yekinni Zainab)
-  if (n.includes('ezenwa vivian') || n.includes('yekinni omotoyosi') || n.includes('adeniyi moses') || n.includes('odubanjo irewamiri')) {
-    student.grade = 'SSS 1 Science';
-    if (n.includes('adeniyi moses')) student.gender = 'Male';
-    else student.gender = 'Female';
-    student.age = 15;
-  } else if (n.includes('oladipo darasimi') || n.includes('asimiyu abdulsalam') || n.includes('yekinni zainab')) {
-    student.grade = 'SSS 1 Arts & Commercial';
-    if (n.includes('asimiyu')) student.gender = 'Male';
-    else student.gender = 'Female';
-    student.age = 15;
   }
 
   // Ensure age and gender exist for the portal profile

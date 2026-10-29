@@ -67,9 +67,20 @@ let currentHealth: SupabaseHealth = {
 // ---------------------------------------------------------------------------
 
 async function initScholarData() {
-  await refreshStudentsOnline();
+  try {
+    // 1. Fetch from server API
+    const res = await fetch('/api/students');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.students) && data.students.length > 0) {
+        allStudents = data.students;
+      }
+    }
+  } catch (e) {
+    console.warn('[Sync Engine] Server /api/students fetch failed, using local storage fallback:', e);
+  }
 
-  // Fallback to localStorage if server wasn't reached
+  // 2. Fallback to localStorage if server wasn't reached
   if (allStudents.length === 0) {
     try {
       const raw = localStorage.getItem('stanbax_students');
@@ -79,36 +90,8 @@ async function initScholarData() {
     } catch {}
   }
 
-  // Test Supabase connection & check for remote updates
+  // 3. Test Supabase connection & check for remote updates
   checkSupabaseHealth();
-
-  // Live polling every 4 seconds to guarantee that Admin edits reflect in student portal immediately
-  setInterval(refreshStudentsOnline, 4000);
-}
-
-async function refreshStudentsOnline() {
-  try {
-    const res = await fetch('/api/students');
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.students) && data.students.length > 0) {
-        allStudents = data.students;
-        if (currentLoggedInStudent) {
-          const fresh = allStudents.find(
-            s => s.id === currentLoggedInStudent!.id || s.regNumber === currentLoggedInStudent!.regNumber
-          );
-          if (fresh) {
-            currentLoggedInStudent = fresh;
-            try {
-              localStorage.setItem('stanbax_current_student', JSON.stringify(fresh));
-            } catch {}
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('[Sync Engine] Server fetch note:', e);
-  }
 }
 
 async function checkSupabaseHealth() {
@@ -257,6 +240,10 @@ function checkStudentPortalDisplay() {
   }
 
   // Look for portal containers or check if we are on student portal
+  const portalRoot = document.getElementById('student-portal-root') || 
+                     document.querySelector('[data-portal="student"]') ||
+                     document.querySelector('main');
+
   const hasPortalIndicator = 
     document.body.innerText.includes('Scholar Portal') || 
     document.body.innerText.includes('Student Portal') ||
@@ -264,32 +251,18 @@ function checkStudentPortalDisplay() {
     localStorage.getItem('stanbax_active_role') === 'student';
 
   if (hasPortalIndicator && currentLoggedInStudent) {
-    // Interconnect directly with latest state: if Admin made edits, reflect immediately
-    const fresh = allStudents.find(s => s.id === currentLoggedInStudent!.id || s.regNumber === currentLoggedInStudent!.regNumber);
-    if (fresh) {
-      currentLoggedInStudent = fresh;
-    }
     renderEnhancedScholarPortal(currentLoggedInStudent);
   }
 }
 
 function renderEnhancedScholarPortal(student: Scholar) {
   let container = document.getElementById('stanbax-scholar-portal-enhanced');
+  if (container) return; // already rendered
+
+  // Find a good insertion point inside main or header
   const targetParent = document.querySelector('main') || document.body;
 
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'stanbax-scholar-portal-enhanced';
-    container.className = 'w-full max-w-5xl mx-auto px-4 py-6 font-["Nunito",sans-serif]';
-    targetParent.insertBefore(container, targetParent.firstChild);
-  }
-
-  // Check if content already matches this student to avoid unnecessary DOM thrashing
-  const currentRenderKey = `${student.id}-${student.name}-${student.grade}-${student.termAverage}-${JSON.stringify(student.grades || [])}`;
-  if (container.getAttribute('data-render-key') === currentRenderKey) {
-    return;
-  }
-  container.setAttribute('data-render-key', currentRenderKey);
+  container = document.createElement('div');
   container.id = 'stanbax-scholar-portal-enhanced';
   container.className = 'w-full max-w-5xl mx-auto px-4 py-6 font-["Nunito",sans-serif]';
 
